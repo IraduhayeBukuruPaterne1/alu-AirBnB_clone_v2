@@ -84,12 +84,6 @@ class TestDBStorage(unittest.TestCase):
         city.state_id = state.id
         city.save()
 
-
-        place = Place(name="Palace", number_rooms=4)
-        place.city_id = city.id
-        place.user_id = id
-        place.save()
-
         review = Review(text="no comment", place_id=place.id, user_id=user.id)
         review.save()
 
