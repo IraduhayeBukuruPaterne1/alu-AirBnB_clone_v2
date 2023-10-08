@@ -1,84 +1,103 @@
 #!/usr/bin/python3
-""" new class for sqlAlchemy """
-from os import getenv
-from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy import (create_engine)
-from sqlalchemy.ext.declarative import declarative_base
-from models.base_model import Base
-from models.state import State
-from models.city import City
+import unittest
+import models
 from models.user import User
-from models.place import Place
 from models.review import Review
 from models.amenity import Amenity
+from models.state import State
+from models.place import Place
+from models.city import City
+import os
 
 
-class DBStorage:
-    """ create tables in environmental"""
-    __engine = None
-    __session = None
+# skip these test if the storage is not db
+@unittest.skipIf(os.getenv('HBNB_TYPE_STORAGE') != 'db', "skip if not fs")
+class TestDBStorage(unittest.TestCase):
+    """DB Storage test"""
 
-    def __init__(self):
-        user = getenv("HBNB_MYSQL_USER")
-        passwd = getenv("HBNB_MYSQL_PWD")
-        db = getenv("HBNB_MYSQL_DB")
-        host = getenv("HBNB_MYSQL_HOST")
-        env = getenv("HBNB_ENV")
+    def setUp(self):
+        """ Set up test environment """
+        self.storage = models.storage
 
-        self.__engine = create_engine('mysql+mysqldb://{}:{}@{}/{}'
-                                      .format(user, passwd, host, db),
-                                      pool_pre_ping=True)
+    def tearDown(self):
+        """ Remove storage file at end of tests """
+        del self.storage
 
-        if env == "test":
-            Base.metadata.drop_all(self.__engine)
+    def test_user(self):
+        """ Tests user """
+        user = User(name="Chyna", email="chyna@gmail.com", password="Chyna12345")
+        user.save()
+        self.assertFalse(user.id in self.storage.all())
+        self.assertEqual(user.name, "Chyna")
 
-    def all(self, cls=None):
-        """returns a dictionary
-        Return:
-            returns a dictionary of __object
-        """
-        dic = {}
-        if cls:
-            if type(cls) is str:
-                cls = eval(cls)
-            query = self.__session.query(cls)
-            for elem in query:
-                key = "{}.{}".format(type(elem).__name__, elem.id)
-                dic[key] = elem
-        else:
-            lista = [State, City, User, Place, Review, Amenity]
-            for clase in lista:
-                query = self.__session.query(clase)
-                for elem in query:
-                    key = "{}.{}".format(type(elem).__name__, elem.id)
-                    dic[key] = elem
-        return (dic)
+    def test_city(self):
+        """ test city """
+        state = State(name="California")
+        state.save()
+        city = City(name="Batch")
+        city.state_id = state.id
+        city.save()
+        self.assertFalse(city.id in self.storage.all())
+        self.assertEqual(city.name, "Batch")
 
-    def new(self, obj):
-        """add a new element in the table
-        """
-        self.__session.add(obj)
+    def test_state(self):
+        """ test state"""
+        state = State(name="California")
+        state.save()
+        self.assertFalse(state.id in self.storage.all())
+        self.assertEqual(state.name, "California")
 
-    def save(self):
-        """save changes
-        """
-        self.__session.commit()
+    def test_place(self):
+        """Test place"""
+        state = State(name="California")
+        state.save()
 
-    def delete(self, obj=None):
-        """delete an element in the table
-        """
-        if obj:
-            self.session.delete(obj)
+        city = City(name="Batch")
+        city.state_id = state.id
+        city.save()
 
-    def reload(self):
-        """configuration
-        """
-        Base.metadata.create_all(self.__engine)
-        sec = sessionmaker(bind=self.__engine, expire_on_commit=False)
-        Session = scoped_session(sec)
-        self.__session = Session()
+        user = User(name="k", email="k@gmail.com", password="k12345")
+        user.save()
 
-    def close(self):
-        """ calls remove()
-        """
-        self.__session.close()
+        place = Place(name="Palace", number_rooms=4)
+        place.city_id = city.id
+        place.user_id = user.id
+        place.save()
+
+        self.assertFalse(place.id in self.storage.all())
+        self.assertEqual(place.number_rooms, 4)
+        self.assertEqual(place.name, "Palace")
+
+    def test_amenity(self):
+        """ test amenity """
+        amenity = Amenity(name="Startlink")
+        amenity.save()
+        self.assertFalse(amenity.id in self.storage.all())
+        self.assertTrue(amenity.name, "Startlink")
+
+    def test_review(self):
+        """ test review """
+        state = State(name="California")
+        state.save()
+
+        city = City(name="Batch")
+        city.state_id = state.id
+        city.save()
+
+        user = User(name="k", email="k@gmail.com", password="k12345")
+        user.save()
+
+        place = Place(name="Palace", number_rooms=4)
+        place.city_id = city.id
+        place.user_id = user.id
+        place.save()
+
+        review = Review(text="no comment", place_id=place.id, user_id=user.id)
+        review.save()
+
+        self.assertFalse(review.id in self.storage.all())
+        self.assertEqual(review.text, "no comment")
+
+
+if __name__ == '__main__':
+    unittest.main()
